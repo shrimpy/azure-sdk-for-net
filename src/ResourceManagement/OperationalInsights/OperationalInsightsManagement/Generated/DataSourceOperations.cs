@@ -768,7 +768,7 @@ namespace Microsoft.Azure.Management.OperationalInsights
             {
                 queryParameters.Add("$filter=" + string.Join(null, odataFilter));
             }
-            queryParameters.Add("$skiptoke=" + Uri.EscapeDataString(skiptoken));
+            queryParameters.Add("$skiptoken=" + Uri.EscapeDataString(skiptoken));
             queryParameters.Add("api-version=2015-11-01-preview");
             if (queryParameters.Count > 0)
             {
@@ -896,11 +896,11 @@ namespace Microsoft.Azure.Management.OperationalInsights
                                 }
                             }
                             
-                            JToken odatanextLinkValue = responseDoc["@odata.nextLink"];
-                            if (odatanextLinkValue != null && odatanextLinkValue.Type != JTokenType.Null)
+                            JToken nextLinkValue = responseDoc["nextLink"];
+                            if (nextLinkValue != null && nextLinkValue.Type != JTokenType.Null)
                             {
-                                string odatanextLinkInstance = ((string)odatanextLinkValue);
-                                result.NextLink = odatanextLinkInstance;
+                                string nextLinkInstance = ((string)nextLinkValue);
+                                result.NextLink = nextLinkInstance;
                             }
                         }
                         
@@ -1080,11 +1080,11 @@ namespace Microsoft.Azure.Management.OperationalInsights
                                 }
                             }
                             
-                            JToken odatanextLinkValue = responseDoc["@odata.nextLink"];
-                            if (odatanextLinkValue != null && odatanextLinkValue.Type != JTokenType.Null)
+                            JToken nextLinkValue = responseDoc["nextLink"];
+                            if (nextLinkValue != null && nextLinkValue.Type != JTokenType.Null)
                             {
-                                string odatanextLinkInstance = ((string)odatanextLinkValue);
-                                result.NextLink = odatanextLinkInstance;
+                                string nextLinkInstance = ((string)nextLinkValue);
+                                result.NextLink = nextLinkInstance;
                             }
                         }
                         
