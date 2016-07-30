@@ -17,6 +17,7 @@ using Microsoft.Azure.Management.OperationalInsights.Models;
 using Microsoft.Azure.Test;
 using OperationalInsights.Tests.Helpers;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using Xunit;
@@ -139,5 +140,91 @@ namespace OperationalInsights.Tests.OperationTests
                 TestHelper.VerifyCloudException(HttpStatusCode.NotFound, () => client.DataSources.CreateOrUpdate(resourceGroupName, workspaceName, createParameters));
             }
         }
+
+        [Fact]
+        public void DataSourceListWithPaging()
+        {
+            BasicDelegatingHandler handler = new BasicDelegatingHandler();
+
+            using (var undoContext = UndoContext.Current)
+            {
+                undoContext.Start();
+
+                var resourceClient = TestHelper.GetResourceClient(handler);
+                var client = TestHelper.GetOperationalInsightsManagementClient(handler);
+
+                string resourceGroupName = TestUtilities.GenerateName("OIHyak");
+                var resourceGroup = TestHelper.CreateResourceGroup(resourceGroupName, resourceClient);
+
+                // Create a workspace that will house the data source
+                string workspaceName = TestUtilities.GenerateName("AzTest");
+                var workspaceCreateParameters = new WorkspaceCreateOrUpdateParameters
+                {
+                    Workspace =
+                        new Workspace
+                        {
+                            Name = workspaceName,
+                            Location = resourceGroup.Location
+                        }
+                };
+
+                var workspaceCreateResponse = client.Workspaces.CreateOrUpdate(resourceGroupName, workspaceCreateParameters);
+                Assert.True(HttpStatusCode.Created == workspaceCreateResponse.StatusCode || HttpStatusCode.OK == workspaceCreateResponse.StatusCode);
+
+                // Create 210 datasources, default pagesize is 200.
+                string dataSourceKind = "WindowsEvent";
+                string dataSourceNamePrefix = TestUtilities.GenerateName("AzTestDS");
+                Dictionary<string, DataSource> dataSourceCreated = new Dictionary<string, DataSource>();
+                for (var i = 0; i < 210; i++)
+                {
+                    var dataSourceName = dataSourceNamePrefix + "-" + i.ToString();
+                    var createParameters = new DataSourceCreateOrUpdateParameters
+                    {
+                        DataSource = new DataSource
+                        {
+                            Name = dataSourceName,
+                            Kind = dataSourceKind,
+                            Properties = "{'eventLogName':'App" + i.ToString() + "','eventTypes':[{'eventType':'Error'}]}"
+                        }
+                    };
+                    dataSourceCreated.Add(dataSourceName, createParameters.DataSource);
+
+                    var createResponse = client.DataSources.CreateOrUpdate(resourceGroupName, workspaceName, createParameters);
+                    Assert.True(HttpStatusCode.Created == createResponse.StatusCode || HttpStatusCode.OK == createResponse.StatusCode);
+                    TestHelper.ValidateDatasource(createParameters.DataSource, createResponse.DataSource);
+                }
+
+                Dictionary<string, DataSource> dataSourceFromListAPI = new Dictionary<string, DataSource>();
+                var listResponse = client.DataSources.ListInWorkspace(resourceGroupName, workspaceName, dataSourceKind, null);
+                while (null != listResponse)
+                {
+                    if (listResponse.DataSources != null)
+                    {
+                        foreach (var ds in listResponse.DataSources)
+                        {
+                            if (!dataSourceFromListAPI.ContainsKey(ds.Name))
+                            {
+                                dataSourceFromListAPI.Add(ds.Name, ds);
+                            } 
+                        }
+                    }
+                    if (!string.IsNullOrEmpty(listResponse.NextLink))
+                    {
+                        listResponse = client.DataSources.ListNext(listResponse.NextLink);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                Assert.True(dataSourceCreated.Count == dataSourceFromListAPI.Count);
+                foreach (var dsName in dataSourceCreated.Keys)
+                {
+                    TestHelper.ValidateDatasource(dataSourceCreated[dsName], dataSourceFromListAPI[dsName]);
+                }
+
+            }
+        }
+
     }
 }
